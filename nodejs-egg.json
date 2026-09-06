@@ -10,7 +10,7 @@
     "description": "A generic Node.js egg using centralized runtime and installer images with Python, FFmpeg, yt-dlp, and optional Cloudflare Tunnel support.\r\n\r\nThis will clone a Git repository or prepare the server for manual uploads. The Docker image provides shared system tools, while project dependencies remain isolated per server.",
     "features": null,
     "docker_images": {
-        "Node.js 22 + Python + FFmpeg + yt-dlp + cloudflared": "ghcr.io\/kavionn\/pterodactyl-nodejs:22"
+        "Node.js 22 - Python FFmpeg yt-dlp cloudflared": "ghcr.io\/kavionn\/pterodactyl-nodejs:22"
     },
     "file_denylist": [],
     "startup": "bash /home/container/.ptero/startup.sh",
