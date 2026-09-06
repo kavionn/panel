@@ -10,7 +10,15 @@
     "description": "A generic Node.js egg using centralized runtime and installer images with Python, FFmpeg, yt-dlp, and optional Cloudflare Tunnel support.\r\n\r\nThis will clone a Git repository or prepare the server for manual uploads. The Docker image provides shared system tools, while project dependencies remain isolated per server.",
     "features": null,
     "docker_images": {
-        "Node.js 22 yt-dlp 2026.08.19 r2": "ghcr.io\/kavionn\/panel:node_22-ytdlp-2026.08.19-r2"
+        "Node.js 26 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_26-ytdlp-2026.08.19-r3",
+        "Node.js 25 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_25-ytdlp-2026.08.19-r3",
+        "Node.js 24 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_24-ytdlp-2026.08.19-r3",
+        "Node.js 23 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_23-ytdlp-2026.08.19-r3",
+        "Node.js 22 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_22-ytdlp-2026.08.19-r3",
+        "Node.js 21 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_21-ytdlp-2026.08.19-r3",
+        "Node.js 20 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_20-ytdlp-2026.08.19-r3",
+        "Node.js 19 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_19-ytdlp-2026.08.19-r3",
+        "Node.js 18 + yt-dlp 2026.08.19": "ghcr.io\/kavionn\/panel:node_18-ytdlp-2026.08.19-r3"
     },
     "file_denylist": [],
     "startup": "/usr/local/bin/ptero-startup",
