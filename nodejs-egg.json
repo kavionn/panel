@@ -1,0 +1,153 @@
+{
+    "_comment": "FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2025-10-23T16:46:55+08:00",
+    "name": "node.js generic",
+    "author": "mohamadusta05@gmail.com",
+    "description": "A generic node.js egg with yt-dlp and optional Cloudflare Tunnel support.\r\n\r\nThis will clone a git repo. It uses the repository's default branch if no branch is specified.\r\n\r\nCreates .ptero/startup.sh and installs persistent helper binaries during installation. If you set user_upload, repository and npm setup are skipped.",
+    "features": null,
+    "docker_images": {
+        "Nodejs 25": "ghcr.io\/ptero-eggs\/yolks:nodejs_25",
+        "Nodejs 24": "ghcr.io\/ptero-eggs\/yolks:nodejs_24",
+        "Nodejs 23": "ghcr.io\/ptero-eggs\/yolks:nodejs_23",
+        "Nodejs 22": "ghcr.io\/ptero-eggs\/yolks:nodejs_22",
+        "Nodejs 21": "ghcr.io\/ptero-eggs\/yolks:nodejs_21",
+        "Nodejs 20": "ghcr.io\/ptero-eggs\/yolks:nodejs_20",
+        "Nodejs 19": "ghcr.io\/ptero-eggs\/yolks:nodejs_19",
+        "Nodejs 18": "ghcr.io\/ptero-eggs\/yolks:nodejs_18",
+        "Nodejs 17": "ghcr.io\/ptero-eggs\/yolks:nodejs_17",
+        "Nodejs 16": "ghcr.io\/ptero-eggs\/yolks:nodejs_16",
+        "Nodejs 14": "ghcr.io\/ptero-eggs\/yolks:nodejs_14",
+        "Nodejs 12": "ghcr.io\/ptero-eggs\/yolks:nodejs_12"
+    },
+    "file_denylist": [],
+    "startup": "bash /home/container/.ptero/startup.sh",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"Starting Node.js application...\"\r\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\r\n# NodeJS App Installation Script\r\n#\r\n# Server Files: /mnt/server\r\nset -e\r\n\r\napt-get update\r\napt-get install -y --no-install-recommends ca-certificates git curl jq file unzip make gcc g++ python3 python3-dev python3-pip libtool\r\n\r\necho \"Updating npm. Please wait...\"\r\nnpm install npm@latest --location=global\r\n\r\nmkdir -p /mnt/server\r\ncd /mnt/server\r\n\r\nSKIP_APP_SETUP=0\r\nif [ \"${USER_UPLOAD}\" == \"true\" ] || [ \"${USER_UPLOAD}\" == \"1\" ]; then\r\n    SKIP_APP_SETUP=1\r\n    echo \"User-upload mode enabled; skipping repository setup.\"\r\nelif [ -n \"${GIT_ADDRESS}\" ]; then\r\n    if [[ \"${GIT_ADDRESS}\" != *.git ]]; then\r\n        GIT_ADDRESS=\"${GIT_ADDRESS}.git\"\r\n    fi\r\n\r\n    if [ -n \"${USERNAME}\" ] || [ -n \"${ACCESS_TOKEN}\" ]; then\r\n        GIT_ADDRESS=\"https://${USERNAME}:${ACCESS_TOKEN}@$(echo \"${GIT_ADDRESS}\" | cut -d/ -f3-)\"\r\n    fi\r\n\r\n    if [ \"$(ls -A /mnt/server)\" ]; then\r\n        echo \"/mnt/server is not empty.\"\r\n        if [ ! -f .git/config ]; then\r\n            echo \"Files exist but no Git configuration was found; stopping to avoid overwriting them.\"\r\n            exit 10\r\n        fi\r\n\r\n        ORIGIN=$(git config --get remote.origin.url)\r\n        if [ \"${ORIGIN}\" == \"${GIT_ADDRESS}\" ]; then\r\n            echo \"Pulling the latest repository changes.\"\r\n            git pull\r\n        else\r\n            echo \"The existing Git origin differs from GIT_ADDRESS; leaving repository files unchanged.\"\r\n        fi\r\n    else\r\n        echo \"Cloning repository.\"\r\n        if [ -z \"${BRANCH}\" ]; then\r\n            git clone \"${GIT_ADDRESS}\" .\r\n        else\r\n            git clone --single-branch --branch \"${BRANCH}\" \"${GIT_ADDRESS}\" .\r\n        fi\r\n    fi\r\nelse\r\n    echo \"No Git repository address provided; skipping repository setup.\"\r\nfi\r\n\r\nSTARTUP_HELPER_DIR=\"/mnt/server/.ptero\"\r\nmkdir -p \"${STARTUP_HELPER_DIR}\"\r\ncat >\"${STARTUP_HELPER_DIR}/startup.sh\" <<'PTERO_STARTUP'\r\n#!/usr/bin/env bash\r\n\r\nset -u\r\n\r\ncd /home/container\r\nexport PATH=\"/home/container/.local/bin:${PATH}\"\r\n\r\nis_enabled() {\r\n  case \"${1:-0}\" in\r\n    1|true|TRUE|on|ON|yes|YES) return 0 ;;\r\n    *) return 1 ;;\r\n  esac\r\n}\r\n\r\nif [[ -d .git ]] && is_enabled \"${AUTO_UPDATE:-0}\"; then\r\n  git pull || echo \"Git auto-update failed; using the current project files.\"\r\nfi\r\n\r\nif [[ -n \"${NODE_PACKAGES:-}\" ]]; then\r\n  read -r -a node_packages <<<\"${NODE_PACKAGES}\"\r\n  /usr/local/bin/npm install \"${node_packages[@]}\"\r\nfi\r\n\r\nif [[ -n \"${UNNODE_PACKAGES:-}\" ]]; then\r\n  read -r -a unnode_packages <<<\"${UNNODE_PACKAGES}\"\r\n  /usr/local/bin/npm uninstall \"${unnode_packages[@]}\"\r\nfi\r\n\r\nif [[ -f /home/container/package.json ]]; then\r\n  /usr/local/bin/npm install\r\nfi\r\n\r\nensure_ytdlp() {\r\n  local tools_dir=\"/home/container/.local/bin\"\r\n  local ytdlp_bin=\"${tools_dir}/yt-dlp\"\r\n  local ytdlp_asset\r\n  local ytdlp_tmp\r\n\r\n  if [[ -x \"$ytdlp_bin\" ]]; then\r\n    return 0\r\n  fi\r\n\r\n  case \"$(uname -m)\" in\r\n    x86_64|amd64) ytdlp_asset=\"yt-dlp_linux\" ;;\r\n    aarch64|arm64) ytdlp_asset=\"yt-dlp_linux_aarch64\" ;;\r\n    *)\r\n      echo \"Unsupported yt-dlp architecture: $(uname -m)\"\r\n      return 1\r\n      ;;\r\n  esac\r\n\r\n  echo \"Downloading yt-dlp...\"\r\n  mkdir -p \"$tools_dir\" || return 1\r\n  ytdlp_tmp=\"$(mktemp \"${ytdlp_bin}.download.XXXXXX\")\" || return 1\r\n\r\n  if curl -fSL --connect-timeout 15 --max-time 180 --retry 2 \\\r\n    \"https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/${ytdlp_asset}\" \\\r\n    -o \"$ytdlp_tmp\" \\\r\n    && chmod 755 \"$ytdlp_tmp\" \\\r\n    && \"$ytdlp_tmp\" --version \\\r\n    && mv \"$ytdlp_tmp\" \"$ytdlp_bin\"; then\r\n    echo \"yt-dlp installed successfully.\"\r\n  else\r\n    rm -f \"$ytdlp_tmp\"\r\n    echo \"yt-dlp download failed; audio downloads may not work.\"\r\n    return 1\r\n  fi\r\n}\r\n\r\nensure_ytdlp || true\r\n\r\nstart_cloudflare_tunnel() {\r\n  local cloudflare_dir=\"/home/container/.cloudflare\"\r\n  local cloudflared_bin=\"/home/container/.local/bin/cloudflared\"\r\n  local cloudflared_arch\r\n  local cloudflared_tmp\r\n\r\n  mkdir -p \"$cloudflare_dir\" || return 1\r\n  touch \"$cloudflare_dir/tunnel.log\" || return 1\r\n  chmod 700 \"$cloudflare_dir\"\r\n  chmod 600 \"$cloudflare_dir/tunnel.log\"\r\n\r\n  if [[ -z \"${TUNNEL_TOKEN:-}\" ]]; then\r\n    echo \"Cloudflare Tunnel is enabled, but TUNNEL_TOKEN is empty.\" | tee -a \"$cloudflare_dir/tunnel.log\"\r\n    return 1\r\n  fi\r\n\r\n  if [[ ! -x \"$cloudflared_bin\" ]]; then\r\n    case \"$(uname -m)\" in\r\n      x86_64|amd64) cloudflared_arch=\"amd64\" ;;\r\n      aarch64|arm64) cloudflared_arch=\"arm64\" ;;\r\n      *)\r\n        echo \"Unsupported cloudflared architecture: $(uname -m)\" | tee -a \"$cloudflare_dir/tunnel.log\"\r\n        return 1\r\n        ;;\r\n    esac\r\n\r\n    echo \"Downloading cloudflared...\" | tee -a \"$cloudflare_dir/tunnel.log\"\r\n    mkdir -p \"/home/container/.local/bin\" || return 1\r\n    cloudflared_tmp=\"$(mktemp \"${cloudflared_bin}.download.XXXXXX\")\" || return 1\r\n\r\n    if curl -fSL --connect-timeout 15 --max-time 180 --retry 2 \\\r\n      \"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${cloudflared_arch}\" \\\r\n      -o \"$cloudflared_tmp\" >>\"$cloudflare_dir/tunnel.log\" 2>&1 \\\r\n      && chmod 755 \"$cloudflared_tmp\" \\\r\n      && \"$cloudflared_tmp\" --version >>\"$cloudflare_dir/tunnel.log\" 2>&1 \\\r\n      && mv \"$cloudflared_tmp\" \"$cloudflared_bin\"; then\r\n      :\r\n    else\r\n      rm -f \"$cloudflared_tmp\"\r\n      echo \"cloudflared download failed. Check .cloudflare/tunnel.log.\" | tee -a \"$cloudflare_dir/tunnel.log\"\r\n      return 1\r\n    fi\r\n  fi\r\n\r\n  echo \"Starting Cloudflare Tunnel connector...\" >>\"$cloudflare_dir/tunnel.log\"\r\n  (\r\n    \"$cloudflared_bin\" tunnel --no-autoupdate --loglevel info run >>\"$cloudflare_dir/tunnel.log\" 2>&1\r\n    cloudflared_status=$?\r\n    echo \"Cloudflare Tunnel process exited (code ${cloudflared_status}). Check .cloudflare/tunnel.log.\" \\\r\n      | tee -a \"$cloudflare_dir/tunnel.log\"\r\n  ) &\r\n\r\n  echo \"Cloudflare Tunnel launched; check .cloudflare/tunnel.log for connection status.\"\r\n}\r\n\r\nif is_enabled \"${CLOUDFLARE_TUNNEL_ENABLED:-0}\"; then\r\n  start_cloudflare_tunnel || echo \"Cloudflare Tunnel setup failed; application startup will continue.\"\r\nelse\r\n  echo \"Cloudflare Tunnel is disabled.\"\r\nfi\r\n\r\nif [[ -z \"${STARTUP_COMMAND:-}\" ]]; then\r\n  echo \"STARTUP_COMMAND is empty; cannot start the Node.js application.\"\r\n  exit 1\r\nfi\r\n\r\necho \"Starting Node.js application...\"\r\nexec /bin/bash -c \"$STARTUP_COMMAND\"\r\n\r\nPTERO_STARTUP\r\nchmod 755 \"${STARTUP_HELPER_DIR}/startup.sh\"\r\necho \"Created ${STARTUP_HELPER_DIR}/startup.sh.\"\r\n\r\nTOOLS_DIR=\"/mnt/server/.local/bin\"\r\nmkdir -p \"${TOOLS_DIR}\"\r\n\r\ncase \"$(dpkg --print-architecture)\" in\r\n    amd64) CLOUDFLARED_ARCH=\"amd64\"; YTDLP_ASSET=\"yt-dlp_linux\" ;;\r\n    arm64) CLOUDFLARED_ARCH=\"arm64\"; YTDLP_ASSET=\"yt-dlp_linux_aarch64\" ;;\r\n    *) echo \"Unsupported architecture: $(dpkg --print-architecture)\"; exit 1 ;;\r\nesac\r\n\r\necho \"Installing the latest standalone yt-dlp nightly binary.\"\r\ncurl -fsSL \"https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/${YTDLP_ASSET}\" -o \"${TOOLS_DIR}/yt-dlp\"\r\nchmod 755 \"${TOOLS_DIR}/yt-dlp\"\r\n\r\necho \"Installing the latest cloudflared binary.\"\r\ncurl -fsSL \"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CLOUDFLARED_ARCH}\" -o \"${TOOLS_DIR}/cloudflared\"\r\nchmod 755 \"${TOOLS_DIR}/cloudflared\"\r\n\r\n\"${TOOLS_DIR}/yt-dlp\" --version\r\n\"${TOOLS_DIR}/cloudflared\" --version\r\n\r\nif [ \"${SKIP_APP_SETUP}\" == \"1\" ]; then\r\n    echo \"Tool installation complete.\"\r\n    exit 0\r\nfi\r\n\r\necho \"Installing Node.js packages.\"\r\nif [ -n \"${NODE_PACKAGES}\" ]; then\r\n    /usr/local/bin/npm install ${NODE_PACKAGES}\r\nfi\r\n\r\nif [ -f /mnt/server/package.json ]; then\r\n    /usr/local/bin/npm install --omit=dev\r\nfi\r\n\r\necho \"Installation complete.\"\r\nexit 0",
+            "container": "node:20-trixie-slim",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Git Repo Address",
+            "description": "GitHub Repo to clone\r\n\r\nI.E. https:\/\/github.com\/parkervcp\/repo_name",
+            "env_variable": "GIT_ADDRESS",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Install Branch",
+            "description": "The branch to install.",
+            "env_variable": "BRANCH",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "User Uploaded Files",
+            "description": "Skip all the install stuff if you are letting a user upload files.\r\n\r\n0 = false (default)\r\n1 = true",
+            "env_variable": "USER_UPLOAD",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "Auto Update",
+            "description": "Pull the latest files on startup when using a GitHub repo.",
+            "env_variable": "AUTO_UPDATE",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "Additional Node packages",
+            "description": "Install additional node packages.\r\n\r\nUse spaces to separate.",
+            "env_variable": "NODE_PACKAGES",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Git Username",
+            "description": "Username to auth with git.",
+            "env_variable": "USERNAME",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Git Access Token",
+            "description": "Password to use with git.\r\n\r\nIt's best practice to use a Personal Access Token.\r\nhttps:\/\/github.com\/settings\/tokens\r\nhttps:\/\/gitlab.com\/-\/profile\/personal_access_tokens",
+            "env_variable": "ACCESS_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Uninstall Node packages",
+            "description": "Uninstall node packages.\r\n\r\nUse spaces to separate.",
+            "env_variable": "UNNODE_PACKAGES",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Startup Command",
+            "description": "Command used to start the Node.js project. The default runs the start script from package.json. Examples: npm start, npm run dev, node index.js, or npx tsx src/index.ts.",
+            "env_variable": "STARTUP_COMMAND",
+            "default_value": "npm start",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:256",
+            "field_type": "text"
+        },
+        {
+            "name": "Enable Cloudflare Tunnel",
+            "description": "0 = off, 1 = on. Restart the server after changing this setting. Downloads cloudflared on startup if missing. Connection and error logs: .cloudflare/tunnel.log.",
+            "env_variable": "CLOUDFLARE_TUNNEL_ENABLED",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "Cloudflare Tunnel Token",
+            "description": "Connector token for a remotely-managed tunnel. Keep this value secret and only fill it when Cloudflare Tunnel is enabled.",
+            "env_variable": "TUNNEL_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:2048",
+            "field_type": "text"
+        }
+    ]
+}
