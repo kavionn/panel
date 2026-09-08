@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - Dockerfile.nodejs-tools
+      - Dockerfile.nodejs-runtime
+      - nodejs-egg.json
       - .github/workflows/build-nodejs-tools.yml
   schedule:
     - cron: '17 2 * * 1'
@@ -17,14 +19,61 @@ permissions:
 
 jobs:
   build:
+    name: Build ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: runtime
-            tag: '22'
-          - target: installer
+          - name: Node.js 26 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_26-ytdlp-2026.08.19-r4
+            tag: node_26-ytdlp-2026.08.19-r5
+          - name: Node.js 25 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_25-ytdlp-2026.08.19-r4
+            tag: node_25-ytdlp-2026.08.19-r5
+          - name: Node.js 24 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_24-ytdlp-2026.08.19-r4
+            tag: node_24-ytdlp-2026.08.19-r5
+          - name: Node.js 23 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_23-ytdlp-2026.08.19-r4
+            tag: node_23-ytdlp-2026.08.19-r5
+          - name: Node.js 22 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_22-ytdlp-2026.08.19-r4
+            tag: node_22-ytdlp-2026.08.19-r5
+          - name: Node.js 21 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_21-ytdlp-2026.08.19-r4
+            tag: node_21-ytdlp-2026.08.19-r5
+          - name: Node.js 20 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_20-ytdlp-2026.08.19-r4
+            tag: node_20-ytdlp-2026.08.19-r5
+          - name: Node.js 19 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_19-ytdlp-2026.08.19-r4
+            tag: node_19-ytdlp-2026.08.19-r5
+          - name: Node.js 18 runtime
+            file: Dockerfile.nodejs-runtime
+            target: runtime
+            base_image: ghcr.io/kavionn/panel:node_18-ytdlp-2026.08.19-r4
+            tag: node_18-ytdlp-2026.08.19-r5
+          - name: Node.js 22 installer
+            file: Dockerfile.nodejs-tools
+            target: installer
+            base_image: ''
             tag: installer-22
 
     steps:
@@ -48,10 +97,12 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: Dockerfile.nodejs-tools
+          file: ${{ matrix.file }}
           target: ${{ matrix.target }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/kavionn/pterodactyl-nodejs:${{ matrix.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}

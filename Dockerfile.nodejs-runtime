@@ -1,0 +1,18 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS runtime
+
+USER root
+
+# Wings runs server containers with the node's numeric UID/GID. That UID does
+# not necessarily match the "container" account stored in the image, so
+# `whoami` can fail while the entrypoint is only printing its startup banner.
+# Keep the pinned runtime intact and make that banner independent of /etc/passwd.
+RUN set -eux; \
+    grep -Fq '"$(whoami)"' /entrypoint.sh; \
+    sed -i 's/"$(whoami)"/"${USER:-container}"/g' /entrypoint.sh; \
+    ! grep -Fq '"$(whoami)"' /entrypoint.sh
+
+LABEL org.opencontainers.image.source="https://github.com/kavionn/panel" \
+      org.opencontainers.image.description="Pterodactyl Node.js runtime with UID-safe startup banner"
+
+USER container
