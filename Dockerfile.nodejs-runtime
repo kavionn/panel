@@ -1,4 +1,4 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=ghcr.io/kavionn/panel:node_22-ytdlp-2026.08.19-r4
 FROM ${BASE_IMAGE} AS runtime
 
 USER root
